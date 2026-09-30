@@ -5,8 +5,32 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"sync/atomic"
 )
+
+func cleanChirps(payloadBody string) any {
+	type cleanChirp struct {
+		Body string `json:"cleaned_body"`
+	}
+
+	words := strings.Split(payloadBody, " ")
+	var cleanWords []string
+
+	for _, word := range words {
+		switch strings.ToLower(word) {
+		case "kerfuffle", "sharbert", "fornax":
+			cleanWords = append(cleanWords, "****")
+		default:
+			cleanWords = append(cleanWords, word)
+		}
+	}
+
+	clean := cleanChirp{
+		Body: strings.Join(cleanWords, " "),
+	}
+	return clean
+}
 
 func respondWithJSON(w http.ResponseWriter, code int, payload any) {
 	dat, err := json.Marshal(payload)
@@ -89,15 +113,9 @@ func main() {
 			return
 		}
 
-		type returnValue struct {
-			Valid bool `json:"valid"`
-		}
+		cleanResp := cleanChirps(params.Body)
 
-		respBody := returnValue{
-			Valid: true,
-		}
-
-		respondWithJSON(w, 200, respBody)
+		respondWithJSON(w, 200, cleanResp)
 	})
 
 	srv := &http.Server{
