@@ -1,11 +1,36 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"sync/atomic"
 )
+
+func respondWithJSON(w http.ResponseWriter, code int, payload any) {
+	dat, err := json.Marshal(payload)
+	if err != nil {
+		log.Printf("Error marshalling JSON: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	w.Write(dat)
+}
+
+func respondWithError(w http.ResponseWriter, code int, msg string) {
+	log.Printf("Error code %d: %s", code, msg)
+	type errorResponse struct {
+		Error string `json:"error"`
+	}
+	err := errorResponse{
+		Error: msg,
+	}
+
+	respondWithJSON(w, code, err)
+}
 
 type apiConfig struct {
 	fileserverHits atomic.Int32
@@ -44,6 +69,36 @@ func main() {
 	})
 	mux.HandleFunc("GET /admin/metrics", cfg.requestCounter)
 	mux.HandleFunc("POST /admin/reset", cfg.resetCounter)
+	mux.HandleFunc("POST /api/validate_chirp", func(w http.ResponseWriter, req *http.Request) {
+		type parameters struct {
+			Body string `json:"body"`
+		}
+
+		decoder := json.NewDecoder(req.Body)
+		params := parameters{}
+		err := decoder.Decode(&params)
+		if err != nil {
+			log.Printf("Error decoding parameters %s", err)
+			respondWithError(w, 400, "Error decoding paramters")
+			return
+		}
+
+		if len(params.Body) > 140 {
+			log.Printf("Length of body exceeded 140 characters")
+			respondWithError(w, 400, "Length of body exceeded 140 characters")
+			return
+		}
+
+		type returnValue struct {
+			Valid bool `json:"valid"`
+		}
+
+		respBody := returnValue{
+			Valid: true,
+		}
+
+		respondWithJSON(w, 200, respBody)
+	})
 
 	srv := &http.Server{
 		Addr:    ":" + port,
