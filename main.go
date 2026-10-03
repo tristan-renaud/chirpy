@@ -1,12 +1,17 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"sync/atomic"
+
+	"github.com/joho/godotenv"
+	"github.com/tristan-renaud/chirpy/internal/database"
 
 	_ "github.com/lib/pq"
 )
@@ -60,6 +65,7 @@ func respondWithError(w http.ResponseWriter, code int, msg string) {
 
 type apiConfig struct {
 	fileserverHits atomic.Int32
+	dbQueries      *database.Queries
 }
 
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
@@ -81,10 +87,21 @@ func (cfg *apiConfig) resetCounter(w http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
+	// loading .env file for postgres URL
+	godotenv.Load()
+	dbURL := os.Getenv("DB_URL")
+
+	// opening connection to that database
+	db, err := sql.Open("postgres", dbURL)
+	if err != nil {
+		log.Printf("%s", err)
+	}
+
 	const filepathRoot = "."
 	const port = "8080"
 
 	var cfg apiConfig
+	cfg.dbQueries = database.New(db)
 
 	mux := http.NewServeMux()
 	mux.Handle("/app/", cfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot)))))
