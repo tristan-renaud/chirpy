@@ -9,7 +9,9 @@ import (
 	"os"
 	"strings"
 	"sync/atomic"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"github.com/tristan-renaud/chirpy/internal/database"
 
@@ -65,7 +67,8 @@ func respondWithError(w http.ResponseWriter, code int, msg string) {
 
 type apiConfig struct {
 	fileserverHits atomic.Int32
-	dbQueries      *database.Queries
+	db             *database.Queries
+	PLATFORM       string
 }
 
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
@@ -86,6 +89,13 @@ func (cfg *apiConfig) resetCounter(w http.ResponseWriter, req *http.Request) {
 	cfg.fileserverHits.Store(0)
 }
 
+type User struct {
+	ID        uuid.UUID `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Email     string    `json:"email"`
+}
+
 func main() {
 	// loading .env file for postgres URL
 	godotenv.Load()
@@ -101,17 +111,22 @@ func main() {
 	const port = "8080"
 
 	var cfg apiConfig
-	cfg.dbQueries = database.New(db)
+	cfg.db = database.New(db)
 
 	mux := http.NewServeMux()
+
 	mux.Handle("/app/", cfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot)))))
+
 	mux.HandleFunc("GET /api/healthz", func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.WriteHeader(200)
 		w.Write([]byte("OK"))
 	})
+
 	mux.HandleFunc("GET /admin/metrics", cfg.requestCounter)
+
 	mux.HandleFunc("POST /admin/reset", cfg.resetCounter)
+
 	mux.HandleFunc("POST /api/validate_chirp", func(w http.ResponseWriter, req *http.Request) {
 		type parameters struct {
 			Body string `json:"body"`
