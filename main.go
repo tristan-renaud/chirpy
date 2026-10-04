@@ -28,6 +28,11 @@ type User struct {
 	Email     string    `json:"email"`
 }
 
+type Chirp struct {
+	Body   string    `json:"body"`
+	UserID uuid.UUID `json:"user_id"`
+}
+
 func main() {
 	const filepathRoot = "."
 	const port = "8080"
