@@ -6,12 +6,12 @@ import (
 	"net/http"
 )
 
-func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, req *http.Request) {
+func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		Email string `json:"email"`
 	}
 
-	decoder := json.NewDecoder(req.Body)
+	decoder := json.NewDecoder(r.Body)
 	params := parameters{}
 	err := decoder.Decode(&params)
 	if err != nil {
@@ -20,7 +20,7 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	user, err := cfg.db.CreateUser(req.Context(), params.Email)
+	user, err := cfg.db.CreateUser(r.Context(), params.Email)
 	if err != nil {
 		log.Printf("error creating user: %s", err)
 		respondWithError(w, 500, "Error creating user", err)
