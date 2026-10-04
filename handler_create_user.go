@@ -16,14 +16,14 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, req *http.Request
 	err := decoder.Decode(&params)
 	if err != nil {
 		log.Printf("Error decoding parameters %s", err)
-		respondWithError(w, 400, "Error decoding paramters")
+		respondWithError(w, 400, "Error decoding paramters", err)
 		return
 	}
 
 	user, err := cfg.db.CreateUser(req.Context(), params.Email)
 	if err != nil {
 		log.Printf("error creating user: %s", err)
-		respondWithError(w, 500, "Error creating user")
+		respondWithError(w, 500, "Error creating user", err)
 		return
 	}
 
