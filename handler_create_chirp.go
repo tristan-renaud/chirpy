@@ -48,8 +48,11 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	c := Chirp{
-		Body:   chirp.Body,
-		UserID: chirp.UserID,
+		ID:        chirp.ID,
+		CreatedAt: chirp.CreatedAt,
+		UpdatedAt: chirp.UpdatedAt,
+		Body:      chirp.Body,
+		UserID:    chirp.UserID,
 	}
 
 	respondWithJSON(w, 201, c)

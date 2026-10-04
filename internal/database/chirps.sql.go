@@ -16,7 +16,7 @@ INSERT INTO chirps (id, created_at, updated_at, body, user_id)
 VALUES (
   gen_random_uuid(), NOW(), NOW(), $1, $2
 )
-RETURNING body, user_id
+RETURNING id, created_at, updated_at, body, user_id
 `
 
 type CreateChirpParams struct {
@@ -24,14 +24,15 @@ type CreateChirpParams struct {
 	UserID uuid.UUID
 }
 
-type CreateChirpRow struct {
-	Body   string
-	UserID uuid.UUID
-}
-
-func (q *Queries) CreateChirp(ctx context.Context, arg CreateChirpParams) (CreateChirpRow, error) {
+func (q *Queries) CreateChirp(ctx context.Context, arg CreateChirpParams) (Chirp, error) {
 	row := q.db.QueryRowContext(ctx, createChirp, arg.Body, arg.UserID)
-	var i CreateChirpRow
-	err := row.Scan(&i.Body, &i.UserID)
+	var i Chirp
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Body,
+		&i.UserID,
+	)
 	return i, err
 }
