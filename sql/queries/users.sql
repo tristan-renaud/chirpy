@@ -4,3 +4,7 @@ VALUES (
   gen_random_uuid(), NOW(), NOW(), $1, $2
 )
 RETURNING id, created_at, updated_at, email;
+
+-- name: RetrieveUser :one
+SELECT * FROM users
+WHERE email = $1;
