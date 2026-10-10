@@ -19,6 +19,7 @@ type apiConfig struct {
 	fileserverHits atomic.Int32
 	db             *database.Queries
 	PLATFORM       string
+	tokenSecret    string
 }
 
 type User struct {
@@ -26,6 +27,7 @@ type User struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Email     string    `json:"email"`
+	Token     string    `json:"token"`
 }
 
 type Chirp struct {
@@ -49,6 +51,10 @@ func main() {
 	if dbPlatform == "" {
 		log.Fatal("PLATFORM must be set")
 	}
+	tokenSecret := os.Getenv("TOKEN_SECRET")
+	if tokenSecret == "" {
+		log.Fatal("TOKEN_SECRET must be set")
+	}
 
 	dbConn, err := sql.Open("postgres", dbURL)
 	if err != nil {
@@ -60,6 +66,7 @@ func main() {
 		fileserverHits: atomic.Int32{},
 		db:             dbQueries,
 		PLATFORM:       dbPlatform,
+		tokenSecret:    tokenSecret,
 	}
 
 	mux := http.NewServeMux()
