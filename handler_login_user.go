@@ -7,13 +7,14 @@ import (
 	"time"
 
 	"github.com/tristan-renaud/chirpy/internal/auth"
+	"github.com/tristan-renaud/chirpy/internal/database"
 )
 
 func (cfg *apiConfig) handlerLoginUser(w http.ResponseWriter, r *http.Request) {
+	const jwtExpiration = 3600 * time.Second
 	type parameters struct {
-		Email            string `json:"email"`
-		Password         string `json:"password"`
-		ExpiresInSeconds int    `json:"expires_in_seconds"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -23,12 +24,6 @@ func (cfg *apiConfig) handlerLoginUser(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error decoding parameters %s", err)
 		respondWithError(w, 400, "Error decoding paramters", err)
 		return
-	}
-
-	if params.ExpiresInSeconds == 0 {
-		params.ExpiresInSeconds = 3600
-	} else if params.ExpiresInSeconds > 3600 {
-		params.ExpiresInSeconds = 3600
 	}
 
 	user, err := cfg.db.RetrieveUser(r.Context(), params.Email)
@@ -45,17 +40,30 @@ func (cfg *apiConfig) handlerLoginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tokenString, err := auth.MakeJWT(user.ID, cfg.tokenSecret, time.Duration(params.ExpiresInSeconds)*time.Second)
+	tokenString, err := auth.MakeJWT(user.ID, cfg.tokenSecret, jwtExpiration)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "failed to created token", err)
+		return
+	}
+
+	refreshToken := auth.MakeRefreshToken()
+
+	err = cfg.db.StoreToken(r.Context(), database.StoreTokenParams{
+		Token:  refreshToken,
+		UserID: user.ID,
+	})
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "failed to store token in database", err)
+		return
 	}
 
 	u := User{
-		ID:        user.ID,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-		Email:     user.Email,
-		Token:     tokenString,
+		ID:           user.ID,
+		CreatedAt:    user.CreatedAt,
+		UpdatedAt:    user.UpdatedAt,
+		Email:        user.Email,
+		Token:        tokenString,
+		RefreshToken: refreshToken,
 	}
 
 	respondWithJSON(w, 200, u)
